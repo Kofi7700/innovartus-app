@@ -1,0 +1,71 @@
+import os
+import logging
+import time
+from datetime import datetime
+from flask import Flask, render_template, jsonify
+
+app = Flask(__name__)
+
+# --- Basic logging setup (visible in Render/hosting platform logs) ---
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("innovartus")
+
+START_TIME = time.time()
+REQUEST_COUNT = 0
+ERROR_COUNT = 0
+
+
+@app.before_request
+def log_request():
+    global REQUEST_COUNT
+    REQUEST_COUNT += 1
+    logger.info(f"Request #{REQUEST_COUNT} received at {datetime.utcnow().isoformat()}")
+
+
+@app.route("/")
+def home():
+    return render_template("index.html", request_count=REQUEST_COUNT)
+
+
+@app.route("/health")
+def health():
+    """Simple health-check endpoint — useful for uptime monitoring tools
+    like UptimeRobot, Render's health checks, or a status page."""
+    uptime_seconds = round(time.time() - START_TIME, 2)
+    return jsonify({
+        "status": "ok",
+        "uptime_seconds": uptime_seconds,
+        "requests_served": REQUEST_COUNT,
+        "timestamp": datetime.utcnow().isoformat()
+    })
+
+
+@app.route("/api/stats")
+def stats():
+    """Fake 'SaaS metric' endpoint — demonstrates an API a real product
+    would expose. Also useful to show in your report as a monitored metric."""
+    return jsonify({
+        "app": "Innovartus SaaS Demo",
+        "requests_served": REQUEST_COUNT,
+        "errors": ERROR_COUNT,
+        "uptime_seconds": round(time.time() - START_TIME, 2)
+    })
+
+
+@app.errorhandler(404)
+def not_found(e):
+    global ERROR_COUNT
+    ERROR_COUNT += 1
+    return jsonify({"error": "Not found"}), 404
+
+
+@app.errorhandler(500)
+def server_error(e):
+    global ERROR_COUNT
+    ERROR_COUNT += 1
+    return jsonify({"error": "Internal server error"}), 500
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
