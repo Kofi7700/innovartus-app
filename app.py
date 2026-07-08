@@ -1,3 +1,4 @@
+import psutil
 import os
 import logging
 import time
@@ -39,6 +40,18 @@ def health():
         "timestamp": datetime.utcnow().isoformat()
     })
 
+
+@app.route("/metrics")
+def metrics():
+    """Self-reported system metrics -- CPU% and memory, since Render's
+    free tier hides these behind a paid plan. This gives us full control
+    over polling frequency and graph resolution."""
+    return jsonify({
+        "cpu_percent": psutil.cpu_percent(interval=0.5),
+        "memory_percent": psutil.virtual_memory().percent,
+        "requests_served": REQUEST_COUNT,
+        "timestamp": datetime.utcnow().isoformat()
+    })
 
 @app.route("/api/stats")
 def stats():
