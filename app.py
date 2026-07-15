@@ -22,12 +22,18 @@ ERROR_COUNT = 0
 #     REQUEST_COUNT += 1
 #     logger.info(f"Request #{REQUEST_COUNT} received at {datetime.utcnow().isoformat()}")
 
-ffrom prometheus_client import (
+from prometheus_client import (
     Gauge,
     Counter,
     generate_latest,
     CONTENT_TYPE_LATEST,
 )
+
+uptime_gauge = Gauge(
+    "app_uptime_seconds",
+    "Application uptime in seconds"
+)
+
 
 cpu_gauge = Gauge('app_cpu_percent', 'CPU usage percent')
 mem_gauge = Gauge('app_memory_percent', 'Memory usage percent')
@@ -44,8 +50,13 @@ def log_request():
 def prometheus_metrics():
     cpu_gauge.set(psutil.cpu_percent(interval=0.2))
     mem_gauge.set(psutil.virtual_memory().percent)
-    return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
+    uptime_gauge.set(time.time() - START_TIME)
 
+    return (
+        generate_latest(),
+        200,
+        {"Content-Type": CONTENT_TYPE_LATEST},
+    )
 
 
 
