@@ -22,6 +22,32 @@ ERROR_COUNT = 0
 #     REQUEST_COUNT += 1
 #     logger.info(f"Request #{REQUEST_COUNT} received at {datetime.utcnow().isoformat()}")
 
+ffrom prometheus_client import (
+    Gauge,
+    Counter,
+    generate_latest,
+    CONTENT_TYPE_LATEST,
+)
+
+cpu_gauge = Gauge('app_cpu_percent', 'CPU usage percent')
+mem_gauge = Gauge('app_memory_percent', 'Memory usage percent')
+requests_counter = Counter('app_requests_total', 'Total requests served')
+
+@app.before_request
+def log_request():
+    global REQUEST_COUNT
+    REQUEST_COUNT += 1
+    requests_counter.inc()
+    logger.info(f"Request #{REQUEST_COUNT} received at {datetime.utcnow().isoformat()}")
+
+@app.route("/prometheus-metrics")
+def prometheus_metrics():
+    cpu_gauge.set(psutil.cpu_percent(interval=0.2))
+    mem_gauge.set(psutil.virtual_memory().percent)
+    return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
+
+
+
 
 @app.route("/")
 def home():
@@ -77,26 +103,6 @@ def server_error(e):
     global ERROR_COUNT
     ERROR_COUNT += 1
     return jsonify({"error": "Internal server error"}), 500
-
-    from prometheus_client import Gauge, Counter, generate_latest, CONTENT_TYPE_LATEST
-
-cpu_gauge = Gauge('app_cpu_percent', 'CPU usage percent')
-mem_gauge = Gauge('app_memory_percent', 'Memory usage percent')
-requests_counter = Counter('app_requests_total', 'Total requests served')
-
-@app.before_request
-def log_request():
-    global REQUEST_COUNT
-    REQUEST_COUNT += 1
-    requests_counter.inc()
-    logger.info(f"Request #{REQUEST_COUNT} received at {datetime.utcnow().isoformat()}")
-
-@app.route("/prometheus-metrics")
-def prometheus_metrics():
-    cpu_gauge.set(psutil.cpu_percent(interval=0.2))
-    mem_gauge.set(psutil.virtual_memory().percent)
-    return generate_latest(), 200, {"Content-Type": CONTENT_TYPE_LATEST}
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
